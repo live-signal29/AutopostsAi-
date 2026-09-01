@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoPost.ai - Enterprise System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: #050811; color: #94a3b8; overflow-x: hidden; }
+
+        /* TOP HEADER */
+        .app-header { display: flex; align-items: center; justify-content: space-between; background: #070c18; border-bottom: 1px solid #1e293b; padding: 12px 20px; position: sticky; top: 0; z-index: 1000; }
+        .brand-logo { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 700; font-size: 18px; cursor: pointer; }
+        .brand-logo i { color: #3b82f6; font-size: 22px; }
+        .menu-toggle-btn { background: #0b1120; border: 1px solid #1e293b; color: #fff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* LAYOUT & DYNAMIC SIDEBAR */
+        .app-container { display: flex; min-height: calc(100vh - 65px); position: relative; }
+        
+        .sidebar { 
+            width: 260px; 
+            background: #070c18; 
+            border-right: 1px solid #1e293b; 
+            padding: 20px 14px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            position: fixed; 
+            top: 65px; 
+            left: -270px; 
+            bottom: 0; 
+            z-index: 999; 
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            overflow-y: auto;
+        }
+        .sidebar.open { left: 0; }
+        .sidebar-overlay { position: fixed; top: 65px; left: 0; width: 100%; height: calc(100vh - 65px); background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 998; display: none; }
+        .sidebar-overlay.active { display: block; }
+        
+        .nav-category { font-size: 11px; text-transform: uppercase; color: #475569; font-weight: 700; margin: 16px 0 8px 8px; letter-spacing: 0.5px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 4px; }
+        .nav-item { color: #94a3b8; font-size: 13px; padding: 10px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; }
+        .nav-item .left { display: flex; align-items: center; gap: 10px; }
+        .nav-item:hover, .nav-item.active { background: #0b1120; color: #3b82f6; border: 1px solid #1e293b; }
+        .badge-count { font-size: 10px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 6px; }
+
+        .main-content { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1200px; margin: 0 auto; }
+
+        /* VIEW NAVIGATION MANAGEMENT (PAGES) */
+        .app-view { display: none; flex-direction: column; gap: 16px; }
+        .app-view.active-view { display: flex; }
+
+        /* STEPPER WORKFLOW */
+        .stepper-bar { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .step-item { background: #0b1120; border: 1px solid #1e293b; padding: 14px 10px; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.2s ease; }
+        .step-item:hover { border-color: #3b82f6; }
+        .step-item.active-step { border-color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
+        .step-circle { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; color: #3b82f6; font-weight: bold; font-size: 14px; }
+        .step-item h4 { color: #f8fafc; font-size: 12px; }
+
+        .card { background: #0b1120; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .card-header h3 { font-size: 14px; color: #f8fafc; display: flex; align-items: center; gap: 8px; }
+
+        /* CREATOR PANEL */
+        .creator-panel { display: none; }
+        .creator-panel.visible { display: block; }
+
+        textarea { width: 100%; height: 95px; background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; color: #fff; font-size: 13px; resize: none; outline: none; margin-bottom: 10px; }
+
+        .file-upload-box { border: 1px dashed #334155; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; background: #020617; margin-bottom: 10px; }
+        .file-upload-box input { display: none; }
+        .file-upload-box p { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+        /* COMPACT IMAGE PREVIEW BADGE */
+        .compact-preview-badge { display: none; align-items: center; gap: 10px; background: #0f172a; border: 1px solid #1e293b; padding: 6px 10px; border-radius: 8px; margin-bottom: 12px; }
+        .compact-preview-badge img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
+        .compact-preview-badge .file-name { font-size: 11px; color: #f1f5f9; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .compact-preview-badge .btn-remove-img { color: #ef4444; background: none; border: none; cursor: pointer; font-size: 14px; }
+
+        .platform-checks { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0 14px; font-size: 12px; color: #cbd5e1; }
+        .platform-checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+        .btn-action { width: 100%; background: #2563eb; color: #fff; border: none; padding: 11px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .btn-ai { background: #8b5cf6; }
+
+        /* LIVE SOCIAL MEDIA MOCKUPS FOR STEP 3 */
+        .preview-container { display: none; margin-top: 14px; flex-direction: column; gap: 12px; }
+        .preview-container.visible { display: flex; }
+        .social-mockup-card { background: #020617; border: 1px solid #1e293b; border-radius: 10px; padding: 12px; }
+        .mockup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .mockup-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; }
+        .mockup-meta h5 { color: #fff; font-size: 12px; }
+        .mockup-meta p { color: #64748b; font-size: 10px; }
+        .mockup-body { color: #e2e8f0; font-size: 12px; white-space: pre-wrap; margin-bottom: 8px; line-height: 1.4; }
+        .mockup-media { width: 100%; max-height: 200px; border-radius: 6px; object-fit: cover; border: 1px solid #1e293b; margin-top: 6px; display: none; }
+
+        /* REAL PLATFORM TRACKER GRID ON DASHBOARD */
+        .platform-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .platform-card { background: #020617; border: 1px solid #1e293b; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; }
+        .platform-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .platform-info { display: flex; align-items: center; gap: 8px; color: #fff; font-size: 13px; font-weight: 600; }
+        
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+        .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .status-dot.offline { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+        .platform-stat { font-size: 18px; color: #fff; font-weight: 700; margin: 4px 0; }
+        .platform-sub { font-size: 10px; color: #64748b; }
+
+        /* API KEY CONFIGURATION CARD STYLES */
+        .api-config-card { background: #020617; border: 1px solid #1e293b; padding: 14px; border-radius: 10px; margin-bottom: 12px; }
+        .api-config-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .api-title { font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .api-input-wrapper { display: flex; gap: 8px; }
+        .api-key-input { flex: 1; background: #0b1120; border: 1px solid #1e293b; color: #fff; padding: 10px; border-radius: 8px; font-size: 12px; outline: none; }
+        .api-key-input:focus { border-color: #3b82f6; }
+        .btn-save-key { background: #10b981; color: #fff; border: none; padding: 0 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-save-key:hover { background: #059669; }
+        .btn-clear-key { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; padding: 0 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+
+        /* USER / ADMIN SECTION FORM */
+        .admin-form-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .admin-input { background: #020617; border: 1px solid #1e293b; padding: 10px; border-radius: 8px; color: #fff; font-size: 12px; outline: none; }
+        .user-list-item { display: flex; justify-content: space-between; align-items: center; background: #020617; border: 1px solid #1e293b; padding: 10px 12px; border-radius: 8px; margin-top: 8px; font-size: 12px; }
+        .role-badge { font-size: 10px; background: rgba(139, 92, 246, 0.2); color: #a78bfa; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(139, 92, 246, 0.4); }
+
+        .connection-status-tag { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+        .connection-status-tag.connected { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981; }
+        .connection-status-tag.disconnected { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444; }
+
+        .grid-2 { display: flex; flex-direction: column; gap: 16px; }
+        .post-item { display: flex; align-items: center; gap: 10px; background: #020617; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #1e293b; }
+        .post-img { width: 32px; height: 32px; border-radius: 6px; background: #1e293b; display: flex; align-items: center; justify-content: center; color: #3b82f6; flex-shrink: 0; }
+        .post-info h5 { color: #f8fafc; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .post-info p { font-size: 10px; color: #64748b; }
+
+        .stat-card-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .stat-card { background: #0b1120; border: 1px solid #1e293b; border-radius: 10px; padding: 12px; }
+        .stat-card h2 { font-size: 18px; color: #fff; margin-top: 2px; }
+
+        .response-status-bar { padding: 10px; border-radius: 8px; font-size: 12px; margin-top: 10px; display: none; text-align: center; font-weight: 500; }
+        .response-status-bar.success { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; }
+        .response-status-bar.error { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #f87171; }
+
+        @media (min-width: 768px) {
+            .app-container { min-height: calc(100vh - 65px); }
+            .sidebar { position: static; left: 0; width: 250px; height: auto; }
+            .sidebar-overlay { display: none !important; }
+            .stepper-bar { grid-template-columns: repeat(4, 1fr); }
+            .platform-grid { grid-template-columns: repeat(4, 1fr); }
+            .grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+            .stat-card-group { grid-template-columns: repeat(4, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP HEADER BAR -->
+    <header class="app-header">
+        <div class="brand-logo" onclick="switchView('dashboardView')">
+            <i class="fa-solid fa-cloud-arrow-up"></i> 
+            <span>AutoPost.ai</span>
+        </div>
+        <button class="menu-toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+    </header>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="app-container">
+        <!-- CATEGORIZED THREE-LINE SIDEBAR MENU -->
+        <aside class="sidebar" id="sidebarDrawer">
+            <div>
+                <div class="nav-category">Main Dashboard</div>
+                <nav class="nav-menu">
+                    <a class="nav-item active" id="navDashboard" onclick="switchView('dashboardView')">
+                        <div class="left"><i class="fa-solid fa-chart-line"></i> Analytics Overview</div>
+                    </a>
+                    <a class="nav-item" onclick="openPostCreator()">
+                        <div class="left"><i class="fa-solid fa-pen-to-square"></i> Create AI Post</div>
+                        <span class="badge-count">New</span>
+                    </a>
+                </nav>
+
+                <div class="nav-category">Administration</div>
+                <nav class="nav-menu">
+                    <a class="nav-item" id="navAdmin" onclick="switchView('adminView')">
+                        <div class="left"><i class="fa-solid fa-user-shield"></i> User & Admin Access</div>
+                        <span class="badge-count">Admin</span>
+                    </a>
+                    <a class="nav-item" id="navApi" onclick="switchView('apiSettingsView')">
+                        <div class="left"><i class="fa-solid fa-key"></i> Add & Manage API Keys</div>
+                    </a>
+                </nav>
+
+                <div class="nav-category">System History</div>
+                <nav class="nav-menu">
+                    <a class="nav-item" id="navLogs" onclick="switchView('logsView')">
+                        <div class="left"><i class="fa-solid fa-list-check"></i> Post Dispatch Logs</div>
+                    </a>
+                </nav>
+            </div>
+
+            <div style="font-size: 11px; color: #475569; text-align: center; border-top: 1px solid #1e293b; padding-top: 12px;">
+                Agent Router System Active
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="main-content">
+
+            <!-- 1. DASHBOARD VIEW -->
+            <div class="app-view active-view" id="dashboardView">
+                
+                <!-- STEPPER WORKFLOW BUTTONS -->
+                <div class="stepper-bar">
+                    <div class="step-item" id="step1Box" onclick="openPostCreator()">
+                        <div class="step-circle"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <h4>1. Upload Post</h4>
+                    </div>
+                    <div class="step-item" id="step2Box" onclick="triggerAdaptClick()">
+                        <div class="step-circle"><i class="fa-solid fa-brain"></i></div>
+                        <h4>2. AI Adapt</h4>
+                    </div>
+                    <div class="step-item" id="step3Box" onclick="renderPlatformPreviews()">
+                        <div class="step-circle"><i class="fa-solid fa-eye"></i></div>
+                        <h4>3. Preview</h4>
+                    </div>
+                    <div class="step-item" id="step4Box" onclick="publishPostEverywhere()">
+                        <div class="step-circle"><i class="fa-solid fa-paper-plane"></i></div>
+                        <h4>4. Publish</h4>
+                    </div>
+                </div>
+
+                <!-- CREATOR PANEL -->
+                <div class="card creator-panel" id="creatorPanel">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-pen-to-square"></i> Multi-Platform AI Post Creator</h3>
+                    </div>
+                    
+                    <textarea id="masterInput" placeholder="Write or paste your post content here..."></textarea>
+                    
+                    <div class="file-upload-box" onclick="document.getElementById('imageUploader').click()">
+                        <i class="fa-solid fa-image" style="font-size: 18px; color: #3b82f6;"></i>
+                        <p>Click to attach media file</p>
+                        <input type="file" id="imageUploader" accept="image/*" onchange="handleCompactPreview(event)">
+                    </div>
+
+                    <div class="compact-preview-badge" id="compactPreviewBadge">
+                        <img id="badgeThumb" src="" alt="Thumbnail">
+                        <span class="file-name" id="badgeFileName">image.jpg</span>
+                        <button class="btn-remove-img" onclick="removeUploadedImage()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <div class="platform-checks">
+                        <label><input type="checkbox" id="chkFb" checked onchange="renderPlatformPreviews()"> Facebook</label>
+                        <label><input type="checkbox" id="chkInsta" checked onchange="renderPlatformPreviews()"> Instagram</label>
+                        <label><input type="checkbox" id="chkLnk" checked onchange="renderPlatformPreviews()"> LinkedIn</label>
+                        <label><input type="checkbox" id="chkTw" checked onchange="renderPlatformPreviews()"> X (Twitter)</label>
+                        <label><input type="checkbox" id="chkTg" checked onchange="renderPlatformPreviews()"> Telegram</label>
+                    </div>
+
+                    <button class="btn-action btn-ai" id="btnAdaptAi" onclick="adaptContentWithAI()">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Step 2: Adapt Content with Agent Router AI
+                    </button>
+
+                    <button class="btn-action" id="btnPublish" onclick="publishPostEverywhere()">
+                        <i class="fa-solid fa-rocket"></i> Step 4: Publish Everywhere
+                    </button>
+
+                    <div id="responseStatus" class="response-status-bar"></div>
+
+                    <div class="preview-container" id="livePreviewContainer"></div>
+                </div>
+
+                <!-- REAL PLATFORM STATUS DASHBOARD CARDS -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-square-poll-vertical"></i> Connected Social Channels Status</h3>
+                    </div>
+                    <div class="platform-grid">
+                        <div class="platform-card">
+                            <div class="platform-card-header">
+                                <span class="platform-info"><i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook</span>
+                                <span class="status-dot" id="dotFb"></span>
+                            </div>
+                            <div class="platform-stat" id="statFb">0 Posts</div>
+                            <div class="platform-sub" id="subFb">Not Configured</div>
+                        </div>
+
+                        <div class="platform-card">
+                            <div class="platform-card-header">
+                                <span class="platform-info"><i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram</span>
+                                <span class="status-dot" id="dotInsta"></span>
+                            </div>
+                            <div class="platform-stat" id="statInsta">0 Posts</div>
+                            <div class="platform-sub" id="subInsta">Not Configured</div>
+                        </div>
+
+                        <div class="platform-card">
+                            <div class="platform-card-header">
+                                <span class="platform-info"><i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i> LinkedIn</span>
+                                <span class="status-dot" id="dotLnk"></span>
+                            </div>
+                            <div class="platform-stat" id="statLnk">0 Posts</div>
+                            <div class="platform-sub" id="subLnk">Not Configured</div>
+                        </div>
+
+                        <div class="platform-card">
+                            <div class="platform-card-header">
+                                <span class="platform-info"><i class="fa-brands fa-x-twitter" style="color: #fff;"></i> X (Twitter)</span>
+                                <span class="status-dot" id="dotTw"></span>
+                            </div>
+                            <div class="platform-stat" id="statTw">0 Posts</div>
+                            <div class="platform-sub" id="subTw">Not Configured</div>
+                        </div>
+
+                        <div class="platform-card">
+                            <div class="platform-card-header">
+                                <span class="platform-info"><i class="fa-brands fa-telegram" style="color: #26a5e4;"></i> Telegram</span>
+                                <span class="status-dot" id="dotTg"></span>
+                            </div>
+                            <div class="platform-stat" id="statTg">0 Posts</div>
+                            <div class="platform-sub" id="subTg">Server env vars</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ANALYTICS STATS -->
+                <div class="stat-card-group">
+                    <div class="stat-card"><p>Successful Posts</p><h2 id="totalPostsCount">0</h2></div>
+                    <div class="stat-card"><p>Failed Attempts</p><h2 id="totalErrorsVal">0</h2></div>
+                    <div class="stat-card"><p>Total Reach</p><h2>—</h2></div>
+                    <div class="stat-card"><p>Link Clicks</p><h2>—</h2></div>
+                </div>
+                <p style="font-size:10px;color:#64748b;margin-top:-8px;">Reach / clicks need each platform's Insights API connected (Facebook Insights, LinkedIn Analytics, X metrics) — not built yet, shown as "—" instead of fake numbers.</p>
+
+            </div>
+
+            <!-- 2. DEDICATED ADMIN & USER MANAGEMENT PAGE -->
+            <div class="app-view" id="adminView">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-user-shield"></i> Admin & User Access Control Panel</h3>
+                    </div>
+                    <p style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Add new administrators or content managers to delegate social posting privileges.</p>
+                    
+                    <div class="admin-form-group">
+                        <label style="font-size: 11px; color: #cbd5e1;">Add New Member</label>
+                        <input type="text" id="adminNameInput" class="admin-input" placeholder="User Full Name">
+                        <input type="email" id="adminEmailInput" class="admin-input" placeholder="User Email Address">
+                        <select id="adminRoleSelect" class="admin-input">
+                            <option value="Admin">Administrator (Full Access)</option>
+                            <option value="Manager">Content Manager (Post Only)</option>
+                        </select>
+                        <button class="btn-action" style="margin-top: 4px;" onclick="addNewUserAdmin()">
+                            <i class="fa-solid fa-user-plus"></i> Grant Access & Invite
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h4 style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">Active System Users</h4>
+                        <div id="usersListContainer">
+                            <div class="user-list-item">
+                                <div>
+                                    <strong style="color: #fff;">Owner (Main Account)</strong>
+                                    <div style="font-size: 10px; color: #64748b;">admin@autopost.ai</div>
+                                </div>
+                                <span class="role-badge">Super Admin</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. REAL DIRECT API KEYS INPUT & MANAGEMENT PAGE -->
+            <div class="app-view" id="apiSettingsView">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-key"></i> Enter Your API Credentials Direct From Front-End</h3>
+                    </div>
+                    <p style="font-size: 11px; color: #64748b; margin-bottom: 14px;">AI key is configured server-side (Vercel env vars) — not entered here. Platform tokens below are stored only in your browser (localStorage) and sent to the API only when you publish.</p>
+
+                    <!-- FACEBOOK -->
+                    <div class="api-config-card">
+                        <div class="api-config-header">
+                            <div class="api-title"><i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook Page</div>
+                            <span class="connection-status-tag disconnected" id="tagFbKey">Not Connected</span>
+                        </div>
+                        <input type="text" id="inputFbPageId" class="api-key-input" placeholder="Facebook Page ID" style="margin-bottom:8px;">
+                        <div class="api-input-wrapper">
+                            <input type="password" id="inputFbKey" class="api-key-input" placeholder="Paste Facebook Page Access Token (EAA...)">
+                            <button class="btn-save-key" onclick="saveApiKey('fb_token', 'inputFbKey'); saveApiKey('fb_page_id', 'inputFbPageId')">Save</button>
+                            <button class="btn-clear-key" onclick="clearApiKey('fb_token', 'inputFbKey'); clearApiKey('fb_page_id', 'inputFbPageId')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- INSTAGRAM -->
+                    <div class="api-config-card">
+                        <div class="api-config-header">
+                            <div class="api-title"><i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram Business Account</div>
+                            <span class="connection-status-tag disconnected" id="tagInstaKey">Not Connected</span>
+                        </div>
+                        <input type="text" id="inputInstaUserId" class="api-key-input" placeholder="Instagram Business Account ID" style="margin-bottom:8px;">
+                        <div class="api-input-wrapper">
+                            <input type="password" id="inputInstaKey" class="api-key-input" placeholder="Paste Instagram Graph API Token">
+                            <button class="btn-save-key" onclick="saveApiKey('insta_token', 'inputInstaKey'); saveApiKey('insta_user_id', 'inputInstaUserId')">Save</button>
+                            <button class="btn-clear-key" onclick="clearApiKey('insta_token', 'inputInstaKey'); clearApiKey('insta_user_id', 'inputInstaUserId')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <p style="font-size:10px;color:#64748b;margin-top:6px;">Note: Instagram requires an image URL with every post — text-only posts aren't supported by the API.</p>
+                    </div>
+
+                    <!-- LINKEDIN -->
+                    <div class="api-config-card">
+                        <div class="api-config-header">
+                            <div class="api-title"><i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i> LinkedIn</div>
+                            <span class="connection-status-tag disconnected" id="tagLnkKey">Not Connected</span>
+                        </div>
+                        <input type="text" id="inputLnkUrn" class="api-key-input" placeholder="Author URN (e.g. urn:li:person:xxxx)" style="margin-bottom:8px;">
+                        <div class="api-input-wrapper">
+                            <input type="password" id="inputLnkKey" class="api-key-input" placeholder="Paste LinkedIn OAuth2 Token">
+                            <button class="btn-save-key" onclick="saveApiKey('lnk_token', 'inputLnkKey'); saveApiKey('lnk_author_urn', 'inputLnkUrn')">Save</button>
+                            <button class="btn-clear-key" onclick="clearApiKey('lnk_token', 'inputLnkKey'); clearApiKey('lnk_author_urn', 'inputLnkUrn')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- X (TWITTER) -->
+                    <div class="api-config-card">
+                        <div class="api-config-header">
+                            <div class="api-title"><i class="fa-brands fa-x-twitter" style="color: #fff;"></i> X (Twitter)</div>
+                            <span class="connection-status-tag disconnected" id="tagTwKey">Not Connected</span>
+                        </div>
+                        <div class="api-input-wrapper">
+                            <input type="password" id="inputTwKey" class="api-key-input" placeholder="Paste X OAuth2 User Access Token (tweet.write scope)">
+                            <button class="btn-save-key" onclick="saveApiKey('tw_token', 'inputTwKey')">Save</button>
+                            <button class="btn-clear-key" onclick="clearApiKey('tw_token', 'inputTwKey')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <p style="font-size:10px;color:#64748b;margin-top:6px;">Note: a plain Bearer App Token cannot post — you need a user-context OAuth2 token with tweet.write scope.</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 4. DEDICATED LOGS VIEW -->
+            <div class="app-view" id="logsView">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> Live Post Dispatch Logs</h3>
+                    </div>
+                    <div id="activityLogContainer">
+                        <div class="post-item">
+                            <div class="post-img"><i class="fa-solid fa-shield-halved"></i></div>
+                            <div class="post-info">
+                                <h5>System Initialized</h5>
+                                <p>Ready to process API credentials and post dispatches.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        let livePostCount = 0;
+        let errorCount = 0;
+        let platformStats = { facebook: 0, instagram: 0, linkedin: 0, twitter: 0, telegram: 0 };
+        let uploadedImageData = null;
+
+        function toggleSidebar() {
+            document.getElementById('sidebarDrawer').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active-view'));
+            document.getElementById(viewId).classList.add('active-view');
+            
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            if(viewId === 'dashboardView') document.getElementById('navDashboard').classList.add('active');
+            if(viewId === 'adminView') document.getElementById('navAdmin').classList.add('active');
+            if(viewId === 'apiSettingsView') document.getElementById('navApi').classList.add('active');
+            if(viewId === 'logsView') document.getElementById('navLogs').classList.add('active');
+
+            if(window.innerWidth < 768 && document.getElementById('sidebarDrawer').classList.contains('open')) {
+                toggleSidebar();
+            }
+        }
+
+        function openPostCreator() {
+            switchView('dashboardView');
+            const panel = document.getElementById('creatorPanel');
+            panel.classList.add('visible');
+            highlightStep('step1Box');
+            panel.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function triggerAdaptClick() {
+            if(!document.getElementById('creatorPanel').classList.contains('visible')) {
+                openPostCreator();
+            }
+            adaptContentWithAI();
+        }
+
+        function handleCompactPreview(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImageData = e.target.result;
+                    document.getElementById('badgeThumb').src = uploadedImageData;
+                    document.getElementById('badgeFileName').innerText = file.name;
+                    document.getElementById('compactPreviewBadge').style.display = 'flex';
+                    renderPlatformPreviews();
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeUploadedImage() {
+            uploadedImageData = null;
+            document.getElementById('imageUploader').value = '';
+            document.getElementById('compactPreviewBadge').style.display = 'none';
+            renderPlatformPreviews();
+        }
+
+        function getSelectedPlatforms() {
+            const list = [];
+            if(document.getElementById('chkFb').checked) list.push({ key: 'facebook', name: 'Facebook Page', icon: 'fa-brands fa-facebook', color: '#1877f2', storageKey: 'fb_token' });
+            if(document.getElementById('chkInsta').checked) list.push({ key: 'instagram', name: 'Instagram', icon: 'fa-brands fa-instagram', color: '#e1306c', storageKey: 'insta_token' });
+            if(document.getElementById('chkLnk').checked) list.push({ key: 'linkedin', name: 'LinkedIn', icon: 'fa-brands fa-linkedin', color: '#0a66c2', storageKey: 'lnk_token' });
+            if(document.getElementById('chkTw').checked) list.push({ key: 'twitter', name: 'X (Twitter)', icon: 'fa-brands fa-x-twitter', color: '#fff', storageKey: 'tw_token' });
+            if(document.getElementById('chkTg').checked) list.push({ key: 'telegram', name: 'Telegram', icon: 'fa-brands fa-telegram', color: '#26a5e4', storageKey: null });
+            return list;
+        }
+
+        function renderPlatformPreviews() {
+            const text = document.getElementById('masterInput').value.trim();
+            const container = document.getElementById('livePreviewContainer');
+            const selected = getSelectedPlatforms();
+
+            if(!text && !uploadedImageData) {
+                container.classList.remove('visible');
+                container.innerHTML = '';
+                return;
+            }
+
+            container.classList.add('visible');
+            container.innerHTML = '<h4 style="font-size:12px; color:#94a3b8; margin-bottom:4px;"><i class="fa-solid fa-eye"></i> Step 3: Platform Previews</h4>';
+
+            selected.forEach(platform => {
+                const card = document.createElement('div');
+                card.className = 'social-mockup-card';
+                card.innerHTML = `
+                    <div class="mockup-header">
+                        <div class="mockup-avatar" style="border: 1px solid ${platform.color};"><i class="${platform.icon}" style="color:${platform.color}"></i></div>
+                        <div class="mockup-meta">
+                            <h5>${platform.name} Preview</h5>
+                            <p>Just now • Automated Post</p>
+                        </div>
+                    </div>
+                    <div class="mockup-body">${escapeHtml(text || 'Your adapted post text will appear here...')}</div>
+                    ${uploadedImageData ? `<img src="${uploadedImageData}" class="mockup-media" style="display:block;">` : ''}
+                `;
+                container.appendChild(card);
+            });
+
+            highlightStep('step3Box');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function saveApiKey(storageKey, inputId) {
+            const val = document.getElementById(inputId).value.trim();
+            if(!val) {
+                alert('Please paste a valid key first!');
+                return;
+            }
+            localStorage.setItem(storageKey, val);
+            alert('API Key Saved Successfully!');
+            refreshApiStatuses();
+        }
+
+        function clearApiKey(storageKey, inputId) {
+            localStorage.removeItem(storageKey);
+            document.getElementById(inputId).value = '';
+            alert('Key Removed.');
+            refreshApiStatuses();
+        }
+
+        function refreshApiStatuses() {
+            const fbKey = localStorage.getItem('fb_token');
+            const instaKey = localStorage.getItem('insta_token');
+            const lnkKey = localStorage.getItem('lnk_token');
+            const twKey = localStorage.getItem('tw_token');
+
+            const fbPageId = document.getElementById('inputFbPageId'); if (fbPageId && !fbPageId.value) fbPageId.value = localStorage.getItem('fb_page_id') || '';
+            const igUserId = document.getElementById('inputInstaUserId'); if (igUserId && !igUserId.value) igUserId.value = localStorage.getItem('insta_user_id') || '';
+            const lnkUrn = document.getElementById('inputLnkUrn'); if (lnkUrn && !lnkUrn.value) lnkUrn.value = localStorage.getItem('lnk_author_urn') || '';
+
+            updateKeyBadgeUI('tagFbKey', 'inputFbKey', fbKey);
+            updateKeyBadgeUI('tagInstaKey', 'inputInstaKey', instaKey);
+            updateKeyBadgeUI('tagLnkKey', 'inputLnkKey', lnkKey);
+            updateKeyBadgeUI('tagTwKey', 'inputTwKey', twKey);
+
+            setChannelStatus('Fb', !!fbKey);
+            setChannelStatus('Insta', !!instaKey);
+            setChannelStatus('Lnk', !!lnkKey);
+            setChannelStatus('Tw', !!twKey);
+        }
+
+        function updateKeyBadgeUI(tagId, inputId, val) {
+            const tag = document.getElementById(tagId);
+            const input = document.getElementById(inputId);
+            if(val) {
+                tag.className = "connection-status-tag connected";
+                tag.innerText = "Connected";
+                if(!input.value) input.value = val;
+            } else {
+                tag.className = "connection-status-tag disconnected";
+                tag.innerText = "Not Connected";
+            }
+        }
+
+        function setChannelStatus(prefix, isConnected) {
+            const dot = document.getElementById('dot' + prefix);
+            const sub = document.getElementById('sub' + prefix);
+            if(isConnected) {
+                dot.className = "status-dot online";
+                sub.innerText = "Status: Connected & Ready";
+                sub.style.color = "#10b981";
+            } else {
+                dot.className = "status-dot offline";
+                sub.innerText = "Not Connected (Save Key)";
+                sub.style.color = "#f87171";
+            }
+        }
+
+        async function adaptContentWithAI() {
+            const text = document.getElementById('masterInput').value.trim();
+            if(!text) return showStatus('Please enter text content first!', 'error');
+
+            const btn = document.getElementById('btnAdaptAi');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Step 2: Adapting via Agent Router...';
+
+            highlightStep('step2Box');
+
+            try {
+                const response = await fetch('/api/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        raw_text: text, 
+                        platforms: getSelectedPlatforms().map(p => p.key), 
+                        action: 'adapt'
+                    })
+                });
+
+                const data = await response.json();
+                if(!response.ok || !data.success) throw new Error(data.error || 'API Request Failed');
+
+                if(data.formatted_content) {
+                    document.getElementById('masterInput').value = data.formatted_content;
+                    showStatus('Real AI Adaptation Complete!', 'success');
+                }
+            } catch(e) {
+                showStatus('AI Adaptation Failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Step 2: Adapt Content with Agent Router AI';
+                renderPlatformPreviews();
+            }
+        }
+
+        async function publishPostEverywhere() {
+            const text = document.getElementById('masterInput').value.trim();
+            if(!text) return showStatus('Content cannot be empty!', 'error');
+
+            const selected = getSelectedPlatforms();
+            if(selected.length === 0) {
+                return showStatus('Please select at least one social media platform!', 'error');
+            }
+
+            // REAL STRICT API KEY CHECK (Telegram is server-configured via env vars, so it's skipped here)
+            let missingKeys = [];
+            selected.forEach(p => {
+                if(p.storageKey && !localStorage.getItem(p.storageKey)) {
+                    missingKeys.push(p.name);
+                }
+            });
+
+            if(missingKeys.length > 0) {
+                return showStatus(`Cannot Publish! Missing API Keys for: ${missingKeys.join(', ')}. Please add keys first.`, 'error');
+            }
+
+            const btn = document.getElementById('btnPublish');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Step 4: Dispatching Post...';
+
+            highlightStep('step4Box');
+
+            const keysPayload = {
+                fb_token: localStorage.getItem('fb_token') || '',
+                fb_page_id: localStorage.getItem('fb_page_id') || '',
+                insta_token: localStorage.getItem('insta_token') || '',
+                insta_user_id: localStorage.getItem('insta_user_id') || '',
+                lnk_token: localStorage.getItem('lnk_token') || '',
+                lnk_author_urn: localStorage.getItem('lnk_author_urn') || '',
+                tw_token: localStorage.getItem('tw_token') || ''
+            };
+
+            try {
+                const res = await fetch('/api/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        raw_text: text,
+                        platforms: selected.map(p => p.key),
+                        user_keys: keysPayload,
+                        image_url: null // wire this to an uploaded/hosted image URL if you have one
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.results && data.results.length) {
+                    data.results.forEach(r => {
+                        if (r.success && platformStats[r.platform] !== undefined) platformStats[r.platform]++;
+                        addLog(r);
+                    });
+                    updatePlatformCardsUI();
+                }
+
+                if (data.all_success) {
+                    showStatus('Success! Post published on every selected platform.', 'success');
+                } else if (data.success) {
+                    showStatus('Partial success — some platforms failed. Check logs for details.', 'error');
+                } else {
+                    showStatus('Publish failed on all platforms. Check logs for details.', 'error');
+                }
+
+            } catch(err) {
+                showStatus('Network Error: Could not connect to API server!', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Step 4: Publish Everywhere';
+            }
+        }
+
+        function updatePlatformCardsUI() {
+            document.getElementById('statFb').innerText = `${platformStats.facebook} Posts`;
+            document.getElementById('statInsta').innerText = `${platformStats.instagram} Posts`;
+            document.getElementById('statLnk').innerText = `${platformStats.linkedin} Posts`;
+            document.getElementById('statTw').innerText = `${platformStats.twitter} Posts`;
+            document.getElementById('statTg').innerText = `${platformStats.telegram} Posts`;
+        }
+
+        function addNewUserAdmin() {
+            const name = document.getElementById('adminNameInput').value.trim();
+            const email = document.getElementById('adminEmailInput').value.trim();
+            const role = document.getElementById('adminRoleSelect').value;
+
+            if(!name || !email) {
+                alert('Please fill out Name and Email');
+                return;
+            }
+
+            const container = document.getElementById('usersListContainer');
+            const item = document.createElement('div');
+            item.className = 'user-list-item';
+            item.innerHTML = `
+                <div>
+                    <strong style="color: #fff;">${escapeHtml(name)}</strong>
+                    <div style="font-size: 10px; color: #64748b;">${escapeHtml(email)}</div>
+                </div>
+                <span class="role-badge">${role}</span>
+            `;
+            container.appendChild(item);
+
+            document.getElementById('adminNameInput').value = '';
+            document.getElementById('adminEmailInput').value = '';
+            alert(`${name} has been added as ${role}`);
+        }
+
+        // result: { platform, success, post_id?, error? } — comes straight from the API,
+        // never fabricated. Total Reach / Engagements / Clicks are shown as "—" until a
+        // real analytics pull (Facebook Insights / LinkedIn / X metrics API) is wired in.
+        function addLog(result) {
+            if (result.success) livePostCount++; else errorCount++;
+            document.getElementById('totalPostsCount').innerText = livePostCount;
+            document.getElementById('totalErrorsVal').innerText = errorCount;
+
+            const container = document.getElementById('activityLogContainer');
+            const item = document.createElement('div');
+            item.className = 'post-item';
+            const icon = result.success ? 'fa-check' : 'fa-triangle-exclamation';
+            const color = result.success ? '#10b981' : '#ef4444';
+            const detail = result.success
+                ? `Published${result.post_id ? ' • ID: ' + escapeHtml(String(result.post_id)) : ''}`
+                : `Failed • ${escapeHtml(result.error || 'Unknown error')}`;
+            item.innerHTML = `
+                <div class="post-img" style="color:${color}"><i class="fa-solid ${icon}"></i></div>
+                <div class="post-info">
+                    <h5>${escapeHtml(result.platform)}</h5>
+                    <p>${detail}</p>
+                </div>
+            `;
+            container.prepend(item);
+        }
+
+        function highlightStep(stepId) {
+            document.querySelectorAll('.step-item').forEach(el => el.classList.remove('active-step'));
+            document.getElementById(stepId).classList.add('active-step');
+        }
+
+        function showStatus(msg, type) {
+            const bar = document.getElementById('responseStatus');
+            bar.className = `response-status-bar ${type}`;
+            bar.innerText = msg;
+            bar.style.display = 'block';
+            setTimeout(() => { bar.style.display = 'none'; }, 5000);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('masterInput').addEventListener('input', renderPlatformPreviews);
+            refreshApiStatuses();
+        });
+
+
+    </script>
+</body>
+</html>

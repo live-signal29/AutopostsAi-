@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "routes": [
+    { "src": "/api/publish", "dest": "/api/publish.js" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}
